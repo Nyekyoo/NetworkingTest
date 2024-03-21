@@ -12,7 +12,8 @@ enum Method
 
 class Program
 {
-    private static Method method = Method.TCP;
+    private static Method method = Method.UDP;
+    private static bool naglesAlgorithm = true;
 
     private static Random random = new Random();
     static int packetNumber = 0;
@@ -40,6 +41,7 @@ class Program
             case Method.TCP:
                 tcpClient = new TcpClient();
                 await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 11000);
+                tcpClient.NoDelay = !naglesAlgorithm;
                 tcpStream = tcpClient.GetStream();
                 break;
             case Method.UDP:

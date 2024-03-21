@@ -11,7 +11,8 @@ enum Method
 
 class Program
 {
-    private static Method method = Method.TCP;
+    private static Method method = Method.UDP;
+    private static bool naglesAlgorithm = true;
 
     private static NetworkStream tcpStream;
 
@@ -27,6 +28,7 @@ class Program
                 tcpListener.Start();
 
                 TcpClient client = tcpListener.AcceptTcpClient();
+                client.NoDelay = !naglesAlgorithm;
                 tcpStream = client.GetStream();
                 break;
 
