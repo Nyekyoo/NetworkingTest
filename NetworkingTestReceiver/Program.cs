@@ -14,7 +14,8 @@ while (true)
     Console.WriteLine(receivedMessage);
 
     // Send ACK with timestamp
-    string ackMessage = $"ACK: {receivedMessage}";
+    string packetNumber = receivedMessage.Split(":")[0];
+    string ackMessage = $"ACK: {packetNumber}";
     byte[] ackBytes = Encoding.ASCII.GetBytes(ackMessage);
     udpClient.Send(ackBytes, ackBytes.Length, remoteEndPoint);
 }

@@ -4,6 +4,8 @@ using System.Text;
 
 class Program
 {
+    private static Random random = new Random();
+
     static int packetNumber = 0;
     static int latestAck = 0;
     static Dictionary<int, DateTime> packetTimes = new();
@@ -72,7 +74,14 @@ class Program
         {
             try
             {
-                string message = packetNumber.ToString();
+                string packet = packetNumber.ToString();
+                
+                const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                string data = new string(Enumerable.Repeat(chars, 255)
+                    .Select(s => s[random.Next(s.Length)]).ToArray());
+
+                string message = packet + ":" + data;
+
                 byte[] messageBytes = Encoding.ASCII.GetBytes(message);
 
                 packetTimes.Add(packetNumber, DateTime.UtcNow);
