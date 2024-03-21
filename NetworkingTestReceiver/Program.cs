@@ -45,8 +45,17 @@ class Program
             switch (method)
             {
                 case Method.TCP:
-                    receivedBytes = new byte[1024];
-                    int bytesRead = tcpStream.Read(receivedBytes, 0, receivedBytes.Length);
+                    byte[] lengthBytes = new byte[4]; // Assuming 4 bytes for the length prefix
+                    int bytesRead = tcpStream.Read(lengthBytes, 0, lengthBytes.Length);
+                    if (bytesRead == 0) // No more data to read, client has closed the connection
+                        goto End;
+
+                    // Convert the length prefix to an integer
+                    int messageLength = BitConverter.ToInt32(lengthBytes, 0);
+
+                    // Read the actual message
+                    receivedBytes = new byte[messageLength];
+                    bytesRead = tcpStream.Read(receivedBytes, 0, receivedBytes.Length);
                     if (bytesRead == 0) // No more data to read, client has closed the connection
                         goto End;
 
@@ -69,7 +78,10 @@ class Program
             switch (method)
             {
                 case Method.TCP:
-                    tcpStream.Write(ackBytes, 0, ackBytes.Length);
+                    byte[] length = BitConverter.GetBytes(ackBytes.Length);
+                    byte[] ackMessageIncludingLength = length.Concat(ackBytes).ToArray();
+
+                    tcpStream.Write(ackMessageIncludingLength, 0, ackMessageIncludingLength.Length);
                     break;
 
                 case Method.UDP:

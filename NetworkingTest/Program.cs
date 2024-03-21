@@ -76,8 +76,13 @@ class Program
                 switch (method)
                 {
                     case Method.TCP:
-                        byte[] buffer = new byte[1024];
-                        int bytesRead = await tcpStream.ReadAsync(buffer, 0, buffer.Length);
+                        byte[] lengthBytes = new byte[4]; // Assuming 4 bytes for the length prefix
+                        int bytesRead = await tcpStream.ReadAsync(lengthBytes, 0, lengthBytes.Length);
+
+                        int messageLength = BitConverter.ToInt32(lengthBytes, 0);
+
+                        byte[] buffer = new byte[messageLength];
+                        bytesRead = await tcpStream.ReadAsync(buffer, 0, buffer.Length);
                         receivedMessage = Encoding.ASCII.GetString(buffer, 0, bytesRead);
                         break;
                     case Method.UDP:
@@ -128,7 +133,10 @@ class Program
                 switch (method)
                 {
                     case Method.TCP:
-                        await tcpStream.WriteAsync(messageBytes, 0, messageBytes.Length);
+                        byte[] length = BitConverter.GetBytes(messageBytes.Length);
+                        byte[] messageIncludingLength = length.Concat(messageBytes).ToArray();
+
+                        await tcpStream.WriteAsync(messageIncludingLength, 0, messageIncludingLength.Length);
                         break;
                     case Method.UDP:
                         await udpClient.SendAsync(messageBytes, messageBytes.Length, remoteEndPoint);
