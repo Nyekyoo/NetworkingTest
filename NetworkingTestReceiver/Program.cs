@@ -11,13 +11,15 @@ enum Method
 
 class Program
 {
-    private static Method method = Method.UDP;
+    private static Method method = Method.R_UDP;
     private static bool naglesAlgorithm = true;
 
     private static NetworkStream tcpStream;
 
     private static UdpClient udpClient;
     private static IPEndPoint remoteEndPoint;
+
+    private static int latestPacketId = -1;
 
     static void Main(string[] args)
     {
@@ -33,6 +35,7 @@ class Program
                 break;
 
             case Method.UDP:
+            case Method.R_UDP:
                 udpClient = new UdpClient(11000);
                 remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
                 break;
@@ -43,6 +46,7 @@ class Program
         {
             byte[] receivedBytes;
             string receivedMessage = "";
+            List<string> receivedMessages = new List<string>();
 
             switch (method)
             {
@@ -68,12 +72,35 @@ class Program
                     receivedBytes = udpClient.Receive(ref remoteEndPoint);
                     receivedMessage = Encoding.ASCII.GetString(receivedBytes);
                     break;
+
+                case Method.R_UDP:
+                    receivedBytes = udpClient.Receive(ref remoteEndPoint);
+                    receivedMessages = SplitByteArray(receivedBytes);
+
+                    break;
             }
 
-            Console.WriteLine(receivedMessage);
+            int packetNumber = -1;
+            if (method == Method.R_UDP)
+            {
+                foreach (string message in receivedMessages)
+                {
+                    int messageNumber = int.Parse(message.Split(":")[0]);
+                    if (messageNumber <= latestPacketId) continue; // Skip duplicate packets
 
-            // Send ACK with timestamp
-            string packetNumber = receivedMessage.Split(":")[0];
+                    Console.WriteLine(message);
+
+                    if (messageNumber > packetNumber) packetNumber = messageNumber;
+                }
+
+                if (packetNumber > latestPacketId) latestPacketId = packetNumber;
+            }
+            else
+            {
+                Console.WriteLine(receivedMessage);
+                packetNumber = int.Parse(receivedMessage.Split(":")[0]);
+            }
+
             string ackMessage = $"ACK: {packetNumber}";
             byte[] ackBytes = Encoding.ASCII.GetBytes(ackMessage);
 
@@ -86,6 +113,7 @@ class Program
                     tcpStream.Write(ackMessageIncludingLength, 0, ackMessageIncludingLength.Length);
                     break;
 
+                case Method.R_UDP:
                 case Method.UDP:
                     udpClient.Send(ackBytes, ackBytes.Length, remoteEndPoint);
                     break;
@@ -95,4 +123,33 @@ class Program
         End:
         Console.WriteLine("Connection Closed");
     }
+
+    public static List<string> SplitByteArray(byte[] input)
+    {
+        var result = new List<string>();
+        int index = 0;
+
+        while (index < input.Length)
+        {
+            // Assuming the first 4 bytes represent the length of the data
+            int length = BitConverter.ToInt32(input, index);
+            index += 4; // Move past the length bytes
+
+            // Ensure there's enough data left in the array
+            if (index + length > input.Length)
+            {
+                throw new ArgumentException("Invalid data format");
+            }
+
+            // Extract the data
+            byte[] data = new byte[length];
+            Array.Copy(input, index, data, 0, length);
+            result.Add(Encoding.ASCII.GetString(data));
+
+            index += length; // Move past the data
+        }
+
+        return result;
+    }
+
 }
