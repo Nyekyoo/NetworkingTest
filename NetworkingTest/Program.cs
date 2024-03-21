@@ -1,17 +1,33 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
+enum Method
+{
+    UDP,
+    TCP,
+    R_UDP,
+}
+
 class Program
 {
-    private static Random random = new Random();
+    private static Method method = Method.TCP;
 
+    private static Random random = new Random();
     static int packetNumber = 0;
     static int latestAck = 0;
     static Dictionary<int, DateTime> packetTimes = new();
+
+    //UDP
     static UdpClient udpClient;
     static IPEndPoint remoteEndPoint;
 
+    // TCP
+    static TcpClient tcpClient;
+    static NetworkStream tcpStream;
+
+    // Latency Calculations
     private static float latencySum = 0;
     private static float packetAmount = 0;
     private static float latencyMin = 999;
@@ -19,14 +35,25 @@ class Program
 
     static async Task Main(string[] args)
     {
-        udpClient = new UdpClient(0);
-        remoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 11000);
+        switch (method)
+        {
+            case Method.TCP:
+                tcpClient = new TcpClient();
+                await tcpClient.ConnectAsync(IPAddress.Parse("127.0.0.1"), 11000);
+                tcpStream = tcpClient.GetStream();
+                break;
+            case Method.UDP:
+                udpClient = new UdpClient(0);
+                remoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 11000);
 
-        udpClient.Client.IOControl(
-            -1744830452,
-            new byte[] { 0, 0, 0, 0 },
-            null
-        );
+                udpClient.Client.IOControl(
+                    -1744830452,
+                    new byte[] { 0, 0, 0, 0 },
+                    null
+                );
+
+                break;
+        }
 
         var receiver = ReceiveMessagesAsync();
         var sender = SendMessagesAsync();
@@ -45,8 +72,19 @@ class Program
         {
             try
             {
-                var result = await udpClient.ReceiveAsync();
-                string receivedMessage = Encoding.ASCII.GetString(result.Buffer);
+                string receivedMessage = "";
+                switch (method)
+                {
+                    case Method.TCP:
+                        byte[] buffer = new byte[1024];
+                        int bytesRead = await tcpStream.ReadAsync(buffer, 0, buffer.Length);
+                        receivedMessage = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+                        break;
+                    case Method.UDP:
+                        var result = await udpClient.ReceiveAsync();
+                        receivedMessage = Encoding.ASCII.GetString(result.Buffer);
+                        break;
+                }
 
                 int ackNumber = int.Parse(receivedMessage.Replace("ACK: ", ""));
 
@@ -75,7 +113,7 @@ class Program
             try
             {
                 string packet = packetNumber.ToString();
-                
+
                 const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
                 string data = new string(Enumerable.Repeat(chars, 255)
                     .Select(s => s[random.Next(s.Length)]).ToArray());
@@ -87,7 +125,16 @@ class Program
                 packetTimes.Add(packetNumber, DateTime.UtcNow);
                 packetNumber++;
 
-                await udpClient.SendAsync(messageBytes, messageBytes.Length, remoteEndPoint);
+                switch (method)
+                {
+                    case Method.TCP:
+                        await tcpStream.WriteAsync(messageBytes, 0, messageBytes.Length);
+                        break;
+                    case Method.UDP:
+                        await udpClient.SendAsync(messageBytes, messageBytes.Length, remoteEndPoint);
+                        break;
+                }
+
                 Console.WriteLine($"Sent: {message}");
 
                 await Task.Delay(1000 / 60);
