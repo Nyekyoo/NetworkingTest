@@ -10,6 +10,11 @@ class Program
     static UdpClient udpClient;
     static IPEndPoint remoteEndPoint;
 
+    private static float latencySum = 0;
+    private static float packetAmount = 0;
+    private static float latencyMin = 999;
+    private static float latencyMax = 0;
+
     static async Task Main(string[] args)
     {
         udpClient = new UdpClient(0);
@@ -25,11 +30,16 @@ class Program
         var sender = SendMessagesAsync();
 
         await Task.WhenAll(receiver, sender);
+
+        Console.WriteLine("Packets Received: " + packetAmount + "/1000");
+        Console.WriteLine("Average Latency: " + latencySum / packetAmount);
+        Console.WriteLine("Latency Min: " + latencyMin);
+        Console.WriteLine("Latency Max: " + latencyMax);
     }
 
     static async Task ReceiveMessagesAsync()
     {
-        while (true)
+        while (latestAck < 999)
         {
             try
             {
@@ -38,7 +48,14 @@ class Program
 
                 int ackNumber = int.Parse(receivedMessage.Replace("ACK: ", ""));
 
-                Console.WriteLine($"Received: {receivedMessage}, Latency: {(DateTime.UtcNow - packetTimes[ackNumber]).TotalMilliseconds / 2.0f}ms");
+                float latency = (float)(DateTime.UtcNow - packetTimes[ackNumber]).TotalMilliseconds / 2.0f;
+
+                packetAmount++;
+                latencySum += latency;
+                if (latency > latencyMax) latencyMax = latency;
+                if (latency < latencyMin) latencyMin = latency;
+
+                Console.WriteLine($"Received: {receivedMessage}, Latency: {latency}ms");
 
                 latestAck = ackNumber;
             }
