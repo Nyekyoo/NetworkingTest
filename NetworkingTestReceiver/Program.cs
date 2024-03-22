@@ -154,7 +154,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        ReceiverImplementation implementation = new TcpReceiverImplementation();
+        ReceiverImplementation implementation = new TcpReceiverImplementation(true);
         implementation.StartListening();
     }
 }

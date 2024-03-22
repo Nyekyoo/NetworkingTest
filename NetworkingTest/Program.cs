@@ -16,8 +16,12 @@ namespace NetworkSendingTest
         private float _maximumLatency;
         private float _latencySum;
 
+        private readonly StringBuilder _csv = new();
+
         public async Task Start()
         {
+            _csv.AppendLine("time,latency");
+
             var receiver = StartListeningAsync();
             var sender = StartSendingAsync();
 
@@ -27,6 +31,8 @@ namespace NetworkSendingTest
             Console.WriteLine("Average Latency: " + _latencySum / _amountOfAcknowledgementsReceived);
             Console.WriteLine("Latency Min: " + _minimumLatency);
             Console.WriteLine("Latency Max: " + _maximumLatency);
+
+            File.WriteAllText("C:\\Users\\tomco\\Desktop\\Latency.csv", _csv.ToString());
         }
 
         private byte[] CreateMessageBytes(int packetNumber)
@@ -78,6 +84,9 @@ namespace NetworkSendingTest
             if (latency < _minimumLatency) _minimumLatency = latency;
 
             Console.WriteLine($"Received ack for packet {packetNumber}, Latency: {latency}ms");
+
+            var newLine = $"{packetNumber},{latency.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            _csv.AppendLine(newLine);
         }
 
         private async Task StartListeningAsync()
@@ -209,7 +218,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        SenderImplementation implementation = new TcpImplementation();
+        SenderImplementation implementation = new TcpImplementation(true);
         await implementation.Start();
     }
 }
