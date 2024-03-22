@@ -12,7 +12,7 @@ enum Method
 class Program
 {
     private static Method method = Method.R_UDP;
-    private static bool naglesAlgorithm = true;
+    private static bool naglesAlgorithm = false;
 
     private static NetworkStream tcpStream;
 
