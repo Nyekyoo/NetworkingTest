@@ -209,7 +209,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        SenderImplementation implementation = new ReliableUdpImplementation();
+        SenderImplementation implementation = new TcpImplementation();
         await implementation.Start();
     }
 }
